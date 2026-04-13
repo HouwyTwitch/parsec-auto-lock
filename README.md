@@ -1,5 +1,7 @@
 # Parsec Monitor
 
+<img width="660" height="534" alt="image" src="https://github.com/user-attachments/assets/6d81b036-c7ee-44a4-94ef-dbf6da119e2e" />
+
 Фоновый монитор подключений Parsec с системным треем, белым списком пользователей и программной блокировкой ввода.
 
 ## Возможности
