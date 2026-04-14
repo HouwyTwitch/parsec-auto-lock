@@ -2,54 +2,54 @@
 
 <img width="660" height="534" alt="image" src="https://github.com/user-attachments/assets/6d81b036-c7ee-44a4-94ef-dbf6da119e2e" />
 
-Фоновый монитор подключений Parsec с системным треем, белым списком пользователей и программной блокировкой ввода.
+Background Parsec connection monitor with a system tray icon, user whitelist, and software input lock.
 
-## Возможности
+## Features
 
-- Отслеживание подключений/отключений Parsec через `log.txt`
-- Системный трей с иконкой и уведомлениями
-- Журнал событий в GUI
-- **Белый список** пользователей Parsec с автодействиями:
-  - При подключении — снятие программной блокировки
-  - При отключении — включение программной блокировки
-- **Программная блокировка** (`SoftLock`):
-  - Блокирует клавиатуру и мышь на уровне системных хуков
-  - Визуально ничего не меняется (экран не гаснет)
-  - Все попытки ввода тихо логируются в `unlock_debug.log`
-  - Ручное снятие блокировки: **Ctrl + Alt + F13**
+- Tracks Parsec connect/disconnect events via `log.txt`
+- System tray icon with notifications
+- Event log in the GUI
+- **User whitelist** with automatic actions:
+  - On connect — release the software input lock
+  - On disconnect — engage the software input lock
+- **Software lock** (`SoftLock`):
+  - Blocks keyboard and mouse via low-level system hooks
+  - No visual change (screen stays on)
+  - All blocked input attempts are silently logged to `unlock_debug.log`
+  - Manual unlock hotkey: **Ctrl + Alt + F13**
 
-## Требования
+## Requirements
 
 - Windows 10/11
 - Python 3.10+
-- Parsec (установленный и запускавшийся хотя бы раз)
+- Parsec (installed and launched at least once)
 
-## Установка
+## Installation
 
 ```bat
 pip install PyQt6
 ```
 
-## Запуск
+## Running
 
 ```bat
 python parsec_monitor.py
 ```
 
-Или без консольного окна:
+Or without a console window:
 ```bat
 pythonw parsec_monitor.py
 ```
 
-## Файлы
+## Files
 
-| Файл | Описание |
-|------|----------|
-| `parsec_monitor.py` | Основной скрипт |
-| `config.json` | Конфигурация (создаётся автоматически) |
-| `unlock_debug.log` | Лог событий блокировки/разблокировки |
+| File | Description |
+|------|-------------|
+| `parsec_monitor.py` | Main script |
+| `config.json` | Configuration (created automatically) |
+| `unlock_debug.log` | Lock/unlock event log |
 
-## Конфигурация (`config.json`)
+## Configuration (`config.json`)
 
 ```json
 {
@@ -59,34 +59,32 @@ pythonw parsec_monitor.py
     {
       "parsec_user": "Houwy#10157355",
       "auto_unlock": true,
-      "auto_lock": true,
-      "win_pass_enc": "",
-      "plain_password": ""
+      "auto_lock": true
     }
   ]
 }
 ```
 
-### Добавление пользователя в белый список
+### Adding a user to the whitelist
 
-**Через GUI:** кнопка `+ Add` в правой панели окна.
+**Via GUI:** click `+ Add` in the right panel of the window.
 
-**Вручную:** добавить объект в `whitelist` с полем `"plain_password": "ваш_пароль"` — при следующем запуске пароль будет обфусцирован и поле очистится.
+**Manually:** add an object to `whitelist` with the fields above.
 
-## Горячие клавиши
+## Hotkeys
 
-| Комбинация | Действие |
-|------------|----------|
-| `Ctrl + Alt + F13` | Снять программную блокировку вручную |
+| Combination | Action |
+|-------------|--------|
+| `Ctrl + Alt + F13` | Manually release the software input lock |
 
-## Автозапуск
+## Autostart
 
-Запустить `install_autostart.bat` от имени администратора.
-Для удаления из автозапуска — `uninstall_autostart.bat`.
+Run `install_autostart.bat` as administrator.
+To remove from autostart — run `uninstall_autostart.bat`.
 
-## Системный трей
+## System Tray
 
-- **Двойной клик** — открыть главное окно
-- **ПКМ → Show** — открыть главное окно
-- **ПКМ → Quit** — завершить программу
-- Закрытие окна сворачивает в трей, не завершает программу
+- **Double-click** — open main window
+- **Right-click → Show** — open main window
+- **Right-click → Quit** — exit the program
+- Closing the window minimizes to tray, does not exit the program

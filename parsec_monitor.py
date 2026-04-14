@@ -1,12 +1,9 @@
 """
 Parsec Connection Monitor — GUI Edition
 PyQt6 · System Tray · Whitelist · Auto-unlock / Auto-lock
-
-First run: set plain_password in config.json whitelist entries.
-           The app will encrypt it via DPAPI and remove the plain text.
 """
 
-import os, sys, time, json, re, threading, subprocess, ctypes, ctypes.wintypes, base64
+import os, sys, time, json, re, threading, ctypes, ctypes.wintypes
 from datetime import datetime
 from pathlib import Path
 
@@ -96,31 +93,6 @@ def svg_to_icon(svg_bytes: bytes, size: int = 64) -> QIcon:
     painter.end()
     return QIcon(pixmap)
 
-# ── Password obfuscation ───────────────────────────────────────────────────────
-# XOR with a machine+user derived key so the stored value is not plain text.
-# Not cryptographic — but makes the password non-obvious in config.json.
-
-def _obf_key() -> bytes:
-    """Derive a repeating key from machine name + Windows username."""
-    import socket, hashlib
-    raw = (socket.gethostname() + os.environ.get("USERNAME", "user")).encode()
-    # SHA256 gives us a stable 32-byte key
-    return hashlib.sha256(raw).digest()
-
-def dpapi_encrypt(plaintext: str) -> str:
-    """Obfuscate password with XOR + base64."""
-    data = plaintext.encode("utf-8")
-    key  = _obf_key()
-    xored = bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
-    return base64.b64encode(xored).decode()
-
-def dpapi_decrypt(encoded: str) -> str:
-    """Reverse obfuscation."""
-    data  = base64.b64decode(encoded)
-    key   = _obf_key()
-    xored = bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
-    return xored.decode("utf-8")
-
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
@@ -128,11 +100,9 @@ DEFAULT_CONFIG = {
     "parsec_folder": "",
     # Whitelist entries:
     # {
-    #   "parsec_user":   "Houwy#10157355",
-    #   "auto_unlock":   true,
-    #   "auto_lock":     true,
-    #   "win_pass_enc":  "",          <- filled automatically from plain_password
-    #   "plain_password": "31415926535"  <- remove after first run
+    #   "parsec_user": "Houwy#10157355",
+    #   "auto_unlock": true,
+    #   "auto_lock":   true
     # }
     "whitelist": []
 }
@@ -155,21 +125,7 @@ def load_config() -> dict:
         cfg["install_type"]  = itype
         cfg["parsec_folder"] = folder
 
-    # Auto-encrypt any plain_password fields left in whitelist
-    changed = False
-    for entry in cfg.get("whitelist", []):
-        if "plain_password" in entry and entry["plain_password"]:
-            try:
-                entry["win_pass_enc"]  = dpapi_encrypt(entry["plain_password"])
-                entry["plain_password"] = ""   # clear plaintext
-                changed = True
-                print(f"[✓] Password for {entry.get('parsec_user','')} encrypted via DPAPI")
-            except Exception as e:
-                print(f"[!] DPAPI encrypt failed for {entry.get('parsec_user','')}: {e}")
-
     save_config(cfg)
-    if changed:
-        print("[✓] config.json updated — plaintext passwords removed")
     return cfg
 
 def save_config(cfg: dict):
@@ -356,25 +312,7 @@ def _log(msg: str):
         f.write(line + "\n")
 
 
-def _type_on_lockscreen(text: str):
-    """Type text + Enter using pyautogui."""
-    import time as _t
-    try:
-        import pyautogui
-    except ImportError:
-        _log("[TYPE] pyautogui not installed! Run: pip install pyautogui")
-        return
-
-    _log(f"[TYPE] pyautogui typing {len(text)} chars")
-    pyautogui.typewrite(text, interval=0.05)
-    _t.sleep(0.2)
-    _log("[TYPE] pressing Enter")
-    pyautogui.press("enter")
-    _log("[TYPE] done")
-
-
-def unlock_workstation(password: str):
-    """Unlock: simply release the soft lock."""
+def unlock_workstation():
     _log("[UNLOCK] Releasing soft lock")
     _soft_lock.unlock()
 
@@ -470,27 +408,20 @@ class WLDialog(QDialog):
         lay.setSpacing(10)
         lay.setContentsMargins(18, 18, 18, 18)
 
-        def field(label, placeholder, echo=False):
+        def field(label, placeholder):
             row = QHBoxLayout()
             lbl = QLabel(label); lbl.setFixedWidth(120); lbl.setStyleSheet("color:#666;font-size:11px;")
             edit = QLineEdit(); edit.setPlaceholderText(placeholder)
-            if echo: edit.setEchoMode(QLineEdit.EchoMode.Password)
             row.addWidget(lbl); row.addWidget(edit)
             lay.addLayout(row)
             return edit
 
         self.f_parsec = field("Parsec user:", "e.g. Houwy#10157355")
-        self.f_pass   = field("Win password:", "leave blank to keep existing", echo=True)
 
         self.cb_unlock = QCheckBox("Auto-unlock on connect");  self.cb_unlock.setChecked(True)
         self.cb_lock   = QCheckBox("Auto-lock on disconnect"); self.cb_lock.setChecked(True)
         lay.addWidget(self.cb_unlock)
         lay.addWidget(self.cb_lock)
-
-        note = QLabel("🔐 Password encrypted with DPAPI — machine & user specific")
-        note.setStyleSheet("color:#444; font-size:10px; padding:4px 0;")
-        note.setWordWrap(True)
-        lay.addWidget(note)
 
         sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine); sep.setStyleSheet("color:#1e1e30;")
         lay.addWidget(sep)
@@ -505,16 +436,14 @@ class WLDialog(QDialog):
             self.f_parsec.setText(entry.get("parsec_user",""))
             self.cb_unlock.setChecked(entry.get("auto_unlock", True))
             self.cb_lock.setChecked(entry.get("auto_lock", True))
-            self.f_pass.setPlaceholderText("leave blank to keep existing")
 
     def _ok(self):
         if not self.f_parsec.text().strip():
             QMessageBox.warning(self, "Error", "Parsec username is required."); return
         self.result_data = {
-            "parsec_user":  self.f_parsec.text().strip(),
-            "auto_unlock":  self.cb_unlock.isChecked(),
-            "auto_lock":    self.cb_lock.isChecked(),
-            "_plain":       self.f_pass.text(),
+            "parsec_user": self.f_parsec.text().strip(),
+            "auto_unlock": self.cb_unlock.isChecked(),
+            "auto_lock":   self.cb_lock.isChecked(),
         }
         self.accept()
 
@@ -619,21 +548,16 @@ class MainWindow(QDialog):
     def _wl_add(self):
         dlg = WLDialog(self)
         if dlg.exec() == QDialog.DialogCode.Accepted and dlg.result_data:
-            d = dlg.result_data; plain = d.pop("_plain","")
-            d["win_pass_enc"] = dpapi_encrypt(plain) if plain else ""
-            d["plain_password"] = ""
-            self.config["whitelist"].append(d); save_config(self.config); self._refresh_wl()
+            self.config["whitelist"].append(dlg.result_data)
+            save_config(self.config); self._refresh_wl()
 
     def _wl_edit(self):
         row = self.wl_list.currentRow()
         if row < 0: return
-        entry = self.config["whitelist"][row]
-        dlg = WLDialog(self, entry)
+        dlg = WLDialog(self, self.config["whitelist"][row])
         if dlg.exec() == QDialog.DialogCode.Accepted and dlg.result_data:
-            d = dlg.result_data; plain = d.pop("_plain","")
-            d["win_pass_enc"] = dpapi_encrypt(plain) if plain else entry.get("win_pass_enc","")
-            d["plain_password"] = ""
-            self.config["whitelist"][row] = d; save_config(self.config); self._refresh_wl()
+            self.config["whitelist"][row] = dlg.result_data
+            save_config(self.config); self._refresh_wl()
 
     def _wl_del(self):
         row = self.wl_list.currentRow()
@@ -720,13 +644,8 @@ class App:
         if wl:
             if event == "connected":
                 self.tray.setIcon(self.ico_ok)
-                if wl.get("auto_unlock") and wl.get("win_pass_enc"):
-                    try:
-                        pwd = dpapi_decrypt(wl["win_pass_enc"])
-                        threading.Thread(target=unlock_workstation, args=(pwd,), daemon=True).start()
-                    except Exception as ex:
-                        self.tray.showMessage("Parsec Monitor", f"Auto-unlock error: {ex}",
-                            QSystemTrayIcon.MessageIcon.Warning, 5000)
+                if wl.get("auto_unlock"):
+                    threading.Thread(target=unlock_workstation, daemon=True).start()
             else:
                 self.tray.setIcon(self.ico_lck)
                 if wl.get("auto_lock"):
