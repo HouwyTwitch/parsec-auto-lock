@@ -59,9 +59,7 @@ pythonw parsec_monitor.py
     {
       "parsec_user": "Houwy#10157355",
       "auto_unlock": true,
-      "auto_lock": true,
-      "win_pass_enc": "",
-      "plain_password": ""
+      "auto_lock": true
     }
   ]
 }
@@ -71,7 +69,7 @@ pythonw parsec_monitor.py
 
 **Via GUI:** click `+ Add` in the right panel of the window.
 
-**Manually:** add an object to `whitelist` with `"plain_password": "your_password"` — on the next launch the password will be obfuscated and the field will be cleared.
+**Manually:** add an object to `whitelist` with the fields above.
 
 ## Hotkeys
 
