@@ -720,9 +720,9 @@ class App:
         if wl:
             if event == "connected":
                 self.tray.setIcon(self.ico_ok)
-                if wl.get("auto_unlock") and wl.get("win_pass_enc"):
+                if wl.get("auto_unlock"):
                     try:
-                        pwd = dpapi_decrypt(wl["win_pass_enc"])
+                        pwd = dpapi_decrypt(wl["win_pass_enc"]) if wl.get("win_pass_enc") else ""
                         threading.Thread(target=unlock_workstation, args=(pwd,), daemon=True).start()
                     except Exception as ex:
                         self.tray.showMessage("Parsec Monitor", f"Auto-unlock error: {ex}",
