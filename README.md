@@ -57,7 +57,7 @@ pythonw parsec_monitor.py
   "parsec_folder": "C:\\Users\\User\\AppData\\Roaming\\Parsec",
   "whitelist": [
     {
-      "parsec_user": "Houwy#10157355",
+      "parsec_user": "SomeUser#101532125",
       "auto_unlock": true,
       "auto_lock": true
     }
